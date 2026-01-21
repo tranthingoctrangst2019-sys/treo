@@ -1,11 +1,201 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="UTF-8">
-  <title>Website test</title>
-</head>
-<body>
-  <h1>🎉 GitHub Pages đã hoạt động!</h1>
-  <p>Hosting miễn phí thành công.</p>
-</body>
-</html>
+import os, time, asyncio, random, sys, aiohttp
+from colorama import Fore, Style, init
+from itertools import cycle
+
+init(autoreset=True)
+
+def clear():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+def banner():
+    print(f"""{Fore.CYAN}
+  _____  _   _ _____  
+ |  __ \| \ | |  __ \ 
+ | |  | |  \| | |__) |
+ | |  | | . ` |  ___/ 
+ | |__| | |\  | |     
+ |_____/|_| \_|_|     
+
+{Fore.LIGHTMAGENTA_EX}    ✨ Version 2.0.9 ✨
+{Fore.LIGHTYELLOW_EX}    Made by Ngoc Phat (DNP)
+""")
+
+def list_txt_files():
+    files = [f for f in os.listdir() if f.endswith('.txt')]
+    for i, f in enumerate(files):
+        print(f"{Fore.LIGHTCYAN_EX}{i+1}. {f}")
+    return files
+
+def read_file_lines(name):
+    with open(name, 'r', encoding='utf-8') as f:
+        return [line.strip() for line in f if line.strip()]
+
+def random_format(msg):
+    return random.choice([f"# {msg}", f"~~ {msg} ~~", f"> {msg}"])
+
+def add_emote(msg):
+    return f"# {msg} =))=))"
+
+def print_menu():
+    menu = [
+        "1. Treo ngôn", "2. Nhây", "3. Nhây (fake type)",
+        "4. Treo ngôn đa token", "5. Nhây random",
+        "6. Nhây random (fake type)", "7. Nhây =))=))",
+        "8. Nhây =))=)) (fake type)", "9. Nhây 1v1 (dms)",
+        "10. Spam nội dung tùy chỉnh (ngôn dài)"
+    ]
+    for idx, text in enumerate(menu, 1):
+        color = [Fore.RED, Fore.BLUE, Fore.GREEN, Fore.MAGENTA, Fore.LIGHTCYAN_EX,
+                 Fore.LIGHTYELLOW_EX, Fore.LIGHTGREEN_EX, Fore.LIGHTRED_EX,
+                 Fore.LIGHTMAGENTA_EX, Fore.WHITE][idx-1]
+        print(color + f"{text}\n")
+
+def rainbow_input(prompt):
+    rainbow = cycle([Fore.RED, Fore.YELLOW, Fore.GREEN, Fore.CYAN, Fore.BLUE, Fore.MAGENTA])
+    for _ in range(16):
+        sys.stdout.write(next(rainbow) + "\r" + prompt)
+        sys.stdout.flush()
+        time.sleep(0.05)
+    print(Style.RESET_ALL + "\r" + prompt, end='')
+    return input()
+
+async def treo(token, msgs, delay):
+    url = "https://discord.com/api/v9/users/@me/settings"
+    headers = {"Authorization": token, "Content-Type": "application/json"}
+    async with aiohttp.ClientSession() as session:
+        while True:
+            for msg in msgs:
+                try:
+                    async with session.patch(url, headers=headers, json={"custom_status": {"text": msg}}) as r:
+                        if r.status == 200:
+                            print(f"{Fore.GREEN}[Treo] {msg}")
+                        elif r.status == 429:
+                            retry = (await r.json()).get("retry_after", 1)
+                            print(f"{Fore.YELLOW}[RateLimit] {retry}s")
+                            await asyncio.sleep(retry)
+                except Exception as e:
+                    print(f"{Fore.RED}[ERROR] {e}")
+                await asyncio.sleep(delay)
+
+async def send_msg(token, cid, msgs, delay, tags=[], fmt="normal", fake=False):
+    headers = {"Authorization": token, "Content-Type": "application/json"}
+    async with aiohttp.ClientSession() as session:
+        while True:
+            for msg in msgs:
+                if fmt == "random":
+                    content = random_format(msg)
+                elif fmt == "emote":
+                    content = add_emote(msg)
+                else:
+                    content = f"# {msg}"
+                if tags:
+                    content += " " + " ".join(f"<@{id}>" for id in tags)
+                try:
+                    if fake:
+                        await session.post(f"https://discord.com/api/v9/channels/{cid}/typing", headers=headers)
+                        await asyncio.sleep(1.5)
+                    async with session.post(f"https://discord.com/api/v9/channels/{cid}/messages", headers=headers, json={"content": content}) as r:
+                        if r.status == 200:
+                            print(f"{Fore.LIGHTMAGENTA_EX}[Gửi] {content}")
+                        elif r.status == 429:
+                            retry = (await r.json()).get("retry_after", 1)
+                            print(f"{Fore.YELLOW}[RateLimit] {retry}s")
+                            await asyncio.sleep(retry)
+                except Exception as e:
+                    print(f"{Fore.RED}[EXCEPTION] {e}")
+                await asyncio.sleep(delay + random.uniform(0.5, 1.0))
+
+async def main():
+    clear()
+    banner()
+    print_menu()
+    choice = rainbow_input("Chọn chức năng: ").strip()
+
+    if choice in ['1', '4']:
+        tf = input("Nhập file token: ").strip()
+        if not os.path.exists(tf): return print(Fore.RED + "Không tìm thấy file token.")
+        tokens = read_file_lines(tf)
+        print("Chọn file ngôn:")
+        files = list_txt_files()
+        try:
+            idx = int(input("Chọn số: ")) - 1
+            msgs = read_file_lines(files[idx])
+        except:
+            return print(Fore.RED + "Lỗi chọn file.")
+        delay = float(input("Nhập delay (giây): "))
+        if choice == '1':
+            await treo(tokens[0], msgs, delay)
+        else:
+            await asyncio.gather(*[treo(tk, msgs, delay) for tk in tokens])
+
+    elif choice in ['2','3','5','6','7','8']:
+        cid = input("Nhập ID kênh: ").strip()
+        tf = input("Nhập file token: ").strip()
+        if not os.path.exists(tf): return print(Fore.RED + "Không tìm thấy file token.")
+        tokens = read_file_lines(tf)
+        print("Chọn file ngôn:")
+        files = list_txt_files()
+        try:
+            idx = int(input("Chọn số: ")) - 1
+            msgs = read_file_lines(files[idx])
+        except:
+            return print(Fore.RED + "Lỗi chọn file.")
+        tags = []
+        tag_input = input("Muốn réo không? Nhập ID (phân cách dấu phẩy): ").strip()
+        if tag_input:
+            tags = [x.strip() for x in tag_input.split(",")]
+        delay = float(input("Nhập delay (giây): "))
+        fmt = "random" if choice in ['5','6'] else "emote" if choice in ['7','8'] else "normal"
+        fake = choice in ['3','6','8']
+        tasks = [send_msg(tk, cid, msgs, delay, tags, fmt, fake) for tk in tokens]
+        await asyncio.gather(*tasks)
+
+    elif choice == '9':
+        uid = input("Nhập ID người nhận: ").strip()
+        tf = input("Nhập file token: ").strip()
+        if not os.path.exists(tf): return print(Fore.RED + "Không tìm thấy file token.")
+        tokens = read_file_lines(tf)
+        print("Chọn file ngôn:")
+        files = list_txt_files()
+        try:
+            idx = int(input("Chọn số: ")) - 1
+            msgs = read_file_lines(files[idx])
+        except:
+            return print(Fore.RED + "Lỗi chọn file.")
+        delay = float(input("Nhập delay (giây): "))
+        async with aiohttp.ClientSession() as session:
+            tasks = []
+            for tk in tokens:
+                try:
+                    async with session.post("https://discord.com/api/v9/users/@me/channels", headers={"Authorization": tk}, json={"recipient_id": uid}) as r:
+                        cid = (await r.json()).get("id")
+                        tasks.append(send_msg(tk, cid, msgs, delay))
+                except Exception as e:
+                    print(f"{Fore.RED}Lỗi tạo DM: {e}")
+            await asyncio.gather(*tasks)
+
+    elif choice == '10':
+        cid = input("Nhập ID kênh: ").strip()
+        tf = input("Nhập file token: ").strip()
+        if not os.path.exists(tf): return print(Fore.RED + "Không tìm thấy file token.")
+        tokens = read_file_lines(tf)
+        print("Chọn file ngôn:")
+        files = list_txt_files()
+        try:
+            idx = int(input("Chọn số: ")) - 1
+            all_lines = read_file_lines(files[idx])
+        except:
+            return print(Fore.RED + "Lỗi chọn file.")
+        messages = ["\n".join(all_lines[i:i+10]) for i in range(0, len(all_lines), 10)]
+        delay = float(input("Nhập delay (giây): "))
+        tasks = [send_msg(tk, cid, messages, delay) for tk in tokens]
+        await asyncio.gather(*tasks)
+
+    else:
+        print(Fore.RED + "Lựa chọn không hợp lệ.")
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print(Fore.RED + "\nĐã thoát.")
